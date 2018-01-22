@@ -988,6 +988,25 @@ func (self *Message) GetFileName() string {
 	return C.GoString(fname)
 }
 
+// Get all filenames for the email corresponding to 'message'.
+//
+// Returns a notmuch_filenames_t iterator listing all the filenames
+// associated with 'message'. These files may not have identical
+// content, but each will have the identical Message-ID.
+//
+// Each filename in the iterator is an absolute filename, (the initial
+// component will match notmuch_database_get_path() ).
+func (self *Message) GetFileNames() *Filenames {
+	if self.message == nil {
+		return nil
+	}
+	fnames := C.notmuch_message_get_filenames(self.message)
+	if fnames == nil {
+		return nil
+	}
+	return &Filenames{fnames: fnames}
+}
+
 type Flag C.notmuch_message_flag_t
 
 const (
@@ -1346,6 +1365,35 @@ func (self *Tags) MoveToNext() {
 	C.notmuch_tags_move_to_next(self.tags)
 }
 
+func (self *Filenames) Valid() bool {
+	if self.fnames == nil {
+		return false
+	}
+	v := C.notmuch_filenames_valid(self.fnames)
+	if v == 0 {
+		return false
+	}
+	return true
+}
+
+func (self *Filenames) Get() string {
+	if self.fnames == nil {
+		return ""
+	}
+
+	s := C.notmuch_filenames_get(self.fnames)
+
+	return C.GoString(s)
+}
+
+// Move the 'filenames' iterator to the next filename.
+func (self *Filenames) MoveToNext() {
+	if self.fnames == nil {
+		return
+	}
+	C.notmuch_filenames_move_to_next(self.fnames)
+}
+
 // Destroy a notmuch_tags_t object.
 //
 // It's not strictly necessary to call this function. All memory from
@@ -1367,8 +1415,6 @@ func (self *Directory) Destroy() {
 	}
 	C.notmuch_directory_destroy(self.dir)
 }
-
-// TODO: wrap notmuch_filenames_<fct>
 
 // Destroy a notmuch_filenames_t object.
 //
