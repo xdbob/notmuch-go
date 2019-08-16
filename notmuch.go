@@ -82,6 +82,10 @@ type Filenames struct {
 	fnames *C.notmuch_filenames_t
 }
 
+type IndexOpts struct {
+	opt *C.notmuch_indexopts_t
+}
+
 type DatabaseMode C.notmuch_database_mode_t
 
 const (
@@ -242,7 +246,7 @@ func (self *Database) GetDirectory(path string) (*Directory, Status) {
 //
 // NOTMUCH_STATUS_READ_ONLY_DATABASE: Database was opened in read-only
 // mode so no message can be added.
-func (self *Database) AddMessage(fname string) (*Message, Status) {
+func (self *Database) IndexFile(fname string, indexopt *IndexOpts) (*Message, Status) {
 	var c_fname *C.char = C.CString(fname)
 	defer C.free(unsafe.Pointer(c_fname))
 
@@ -251,9 +255,13 @@ func (self *Database) AddMessage(fname string) (*Message, Status) {
 	}
 
 	var c_msg *C.notmuch_message_t = new(C.notmuch_message_t)
-	st := Status(C.notmuch_database_add_message(self.db, c_fname, &c_msg))
+	st := Status(C.notmuch_database_index_file(self.db, c_fname, indexopt.opt, &c_msg))
 
 	return &Message{message: c_msg}, st
+}
+
+func (self *Database) AddMessage(fname string) (*Message, Status) {
+	return self.IndexFile(fname, &IndexOpts{opt: nil})
 }
 
 // Remove a message from the given notmuch database.
@@ -1296,6 +1304,13 @@ func (self *Message) TagsToMaildirFlags() Status {
 	return Status(C.notmuch_message_tags_to_maildir_flags(self.message))
 }
 
+func (self *Message) ReIndex(indexopts *IndexOpts) Status {
+	if self.message == nil {
+		return STATUS_NULL_POINTER
+	}
+	return Status(C.notmuch_message_reindex(self.message, indexopts.opt))
+}
+
 // Destroy a notmuch_message_t object.
 //
 // It can be useful to call this function in the case of a single
@@ -1414,6 +1429,7 @@ func (self *Directory) Destroy() {
 		return
 	}
 	C.notmuch_directory_destroy(self.dir)
+	self.dir = nil
 }
 
 // Destroy a notmuch_filenames_t object.
@@ -1429,6 +1445,15 @@ func (self *Filenames) Destroy() {
 		return
 	}
 	C.notmuch_filenames_destroy(self.fnames)
+}
+
+// Destroy a notmuch_indexopts_t object
+func (self *IndexOpts) Destroy() {
+	if self.opt == nil {
+		return
+	}
+	C.notmuch_indexopts_destroy(self.opt)
+	self.opt = nil
 }
 
 // EOF
