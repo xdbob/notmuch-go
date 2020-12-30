@@ -254,7 +254,7 @@ func (self *Database) IndexFile(fname string, indexopt *IndexOpts) (*Message, St
 		return nil, STATUS_OUT_OF_MEMORY
 	}
 
-	var c_msg *C.notmuch_message_t = new(C.notmuch_message_t)
+	var c_msg *C.notmuch_message_t
 	st := Status(C.notmuch_database_index_file(self.db, c_fname, indexopt.opt, &c_msg))
 
 	return &Message{message: c_msg}, st
